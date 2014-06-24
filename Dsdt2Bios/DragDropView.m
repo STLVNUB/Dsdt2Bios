@@ -42,14 +42,15 @@
     int i, ret;
     unsigned long len;
     unsigned char *d =NULL;
-    unsigned short Old_Dsdt_Size, Old_Dsdt_Ofs;
+    unsigned int Old_Dsdt_Size;
+    unsigned short Old_Dsdt_Ofs;
     const char *FileName;
     const char *fnAmiBoardInfo = "";
     const char *fnDSDT = "";
     unsigned short reloc_padding;
     
 
-    d = malloc(0x10000);
+    d = malloc(0x40000); // max 256kb
     
     switch ( [draggedFilenames count] ) //Number of files drop
     {

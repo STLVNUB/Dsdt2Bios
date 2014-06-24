@@ -44,7 +44,7 @@ struct platform
 int isDSDT(const char *FileName);
 int isAmiBoardInfo(const char *FileName);
 
-unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned short Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs, unsigned short *reloc_padding);
-unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract);
+unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned int Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs, unsigned short *reloc_padding);
+unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned int *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract);
 
 #endif

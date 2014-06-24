@@ -154,7 +154,7 @@ int isAmiBoardInfo(const char *FileName)
     return 1;
 }
 
-unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract)
+unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned int *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract)
 {
     int fd_amiboard, fd_out;
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -168,10 +168,10 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
         return 0;
     }
     //Get size of AmiBoardInfo in Header
-    *len = read(fd_amiboard, d, 0xFFFF);
+    *len = read(fd_amiboard, d, 0x3FFFF); // max 256kb
     close(fd_amiboard);
     
-    HeaderDOS = (EFI_IMAGE_DOS_HEADER *)&d[0];
+    HeaderDOS = (EFI_IMAGE_DOS_HEADER *)d;
     
     if (HeaderDOS->e_magic != 0x5A4D )
     {
@@ -183,7 +183,10 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     {
         if(!memcmp((const void *)&d[*Old_Dsdt_Ofs], HEADER_DSDT, HEADER_SIZE))
         {
-            *Old_Dsdt_Size = (d[*Old_Dsdt_Ofs+5] << 8) + d[*Old_Dsdt_Ofs+4];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+7];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+6];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+5];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+4];
             break;
         }
     }
@@ -214,13 +217,13 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     return 1;
 }
 
-unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned short Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs,unsigned short *reloc_padding)
+unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned int Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs,unsigned short *reloc_padding)
 {
     int fd_dsdt, fd_out, i, j;
     unsigned long dsdt_len;
     short size, padding;
     unsigned char *dsdt;
-    unsigned short New_Dsdt_Size;
+    unsigned int New_Dsdt_Size;
     
     
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -228,7 +231,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
     EFI_IMAGE_SECTION_HEADER *Section;
 
     
-    dsdt = malloc(0x10000);
+    dsdt = malloc(0x40000); // max 256 kb
     
     
     fd_dsdt = open(FileName, O_RDWR | O_NONBLOCK);
@@ -240,7 +243,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
         return 0;
     }
     //Read DSDT into buffer
-    dsdt_len = read(fd_dsdt, dsdt, 0xFFFF);
+    dsdt_len = read(fd_dsdt, dsdt, 0x3FFFF); // max 256 kb
     close(fd_dsdt);
     
     if(memcmp((const void *)dsdt, HEADER_DSDT, HEADER_SIZE))
@@ -261,15 +264,18 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
         }
     }
         
-    New_Dsdt_Size = (dsdt[5] << 8) + dsdt[4];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[7];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[6];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[5];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[4];
     
     size = New_Dsdt_Size - Old_Dsdt_Size;
     padding = 0x10-(len+size)&0x0f;
     size += padding + *reloc_padding;
     
-    if ((len+size) > 0xFFFF)
+    if ((len+size) > 0x3FFFF)
     {
-        printf("\n\n\n\n\n\n\n\nFinal size > 0xFFFF not tested aborting\n");
+        printf("\n\n\n\n\n\n\n\nFinal size > 0x3FFFF not tested aborting\n");
         free(dsdt);
         return 0;
     }
