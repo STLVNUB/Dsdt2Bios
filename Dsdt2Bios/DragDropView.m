@@ -55,9 +55,12 @@
     {
         case EXTRACT_DSDT:
             FileName = [draggedFilenames[0] UTF8String];
+            ret = isAmiBoardInfo(FileName);
+            if (ret <= 0) {
+                printf("\n\n\n\n\n\n\n\nFile %s has bad header or not accessable\n",FileName);
+                break;
+            }
             ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,2);
-            if ( ret == 2 )
-                printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
             break;
             
         case EXTRACT_DSDT_AND_PATCH:
