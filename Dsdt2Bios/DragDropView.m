@@ -1,5 +1,6 @@
 
 #import "DragDropView.h"
+#include "c/Dsdt2Bios.h"
 
 @implementation DragDropView
 
@@ -42,7 +43,6 @@
     unsigned char *d =NULL;
     unsigned short Old_Dsdt_Size, Old_Dsdt_Ofs;
     const char *FileName;
-    char cr[65535];
     unsigned short reloc_padding;
     
 
@@ -53,8 +53,8 @@
         case 1: //Just extract DSDT
         {
             FileName = [draggedFilenames[0] UTF8String];
-            ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,2,cr);
-            if ( ret == 2 )sprintf(cr,"\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
+            ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,2);
+            if ( ret == 2 ) printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
             NSString* string = [[NSString alloc] initWithUTF8String:cr];
             self.Output.string=string;
         }
@@ -63,40 +63,40 @@
         case 2: //Extract DSDT and patch
         {
             FileName = [draggedFilenames[0] UTF8String];
-            ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1,cr);
+            ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
             switch (ret) //Check order of files drags
             {
                 case 1:
                     FileName = [draggedFilenames[1] UTF8String];
                     reloc_padding = 0;
-                    Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,cr,&reloc_padding);
+                    Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
                     //si reloc_padding est différent de 0, cela signifie que la zone de relocation est à cheval sur un segment d'adresse
                     //il faut donc recaler l'adresse de base -> appel une seconde fois avec le paramètre reloc_padding.
                     if ( reloc_padding != 0 )
                     {
                         FileName = [draggedFilenames[0] UTF8String];
-                        ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1,cr);
+                        ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
                         FileName = [draggedFilenames[1] UTF8String];
-                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,cr,&reloc_padding);
+                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
                     }
                 break;
                 case 2:
                     FileName = [draggedFilenames[1] UTF8String];
-                    if ( Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1,cr) == 2)
-                        sprintf(cr,"\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
+                    if ( Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1) == 2)
+                        printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
                     else
                     {
                         FileName = [draggedFilenames[0] UTF8String];
                         reloc_padding = 0;
-                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,cr,&reloc_padding);
+                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
                         //si reloc_padding est différent de 0, cela signifie que la zone de relocation est à cheval sur un segment d'adresse
                         //il faut donc recaler l'adresse de base -> appel une seconde fois avec le paramètre reloc_padding.
                         if ( reloc_padding != 0 )
                         {
                             FileName = [draggedFilenames[1] UTF8String];
-                            Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1,cr);
+                            Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
                             FileName = [draggedFilenames[0] UTF8String];
-                            Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,cr,&reloc_padding);
+                            Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
                         }
                     }
                 break;
