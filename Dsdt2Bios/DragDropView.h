@@ -8,6 +8,9 @@
 
 #import <Cocoa/Cocoa.h>
 
+#define EXTRACT_DSDT 1
+#define EXTRACT_DSDT_AND_PATCH 2
+
 @interface DragDropView : NSView{
     bool highlight;
     
@@ -15,6 +18,4 @@
 @property (strong) IBOutlet NSTextView *Output;
 
 
-unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned short Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs, unsigned short *reloc_padding);
-unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract);
 @end

@@ -105,6 +105,55 @@ static int Disass(unsigned char *X86_CODE64, int CodeSize, int size)
     return ret;
 }
 
+int isDSDT(const char *FileName)
+{
+    int fd;
+    unsigned char *data = malloc(HEADER_SIZE+1);
+    
+    fd = open(FileName, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        free(data);
+        return -1; // File not existant
+    }
+    
+    read(fd, data, HEADER_SIZE);
+    close(fd);
+    
+    if(memcmp((const void *)data, HEADER_DSDT, HEADER_SIZE)) {
+        free(data);
+        return 0;
+    }
+    
+    free(data);
+    return 1;
+}
+
+int isAmiBoardInfo(const char *FileName)
+{
+    int fd;
+    unsigned char *data = malloc(sizeof(EFI_IMAGE_DOS_HEADER)+1);
+    
+    fd = open(FileName, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        free(data);
+        return -1; // File not existant
+    }
+    
+    read(fd, data, sizeof(EFI_IMAGE_DOS_HEADER));
+    close(fd);
+    
+    EFI_IMAGE_DOS_HEADER *HeaderDOS;
+    HeaderDOS = (EFI_IMAGE_DOS_HEADER *)data;
+    
+    if (HeaderDOS->e_magic != 0x5A4D ) {
+        free(data);
+        return 0;
+    }
+    
+    free(data);
+    return 1;
+}
+
 unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract)
 {
     int fd_amiboard, fd_out;
@@ -126,13 +175,8 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     
     if (HeaderDOS->e_magic != 0x5A4D )
     {
-        if(memcmp((const void *)d, HEADER_DSDT, HEADER_SIZE))
-        {
-            printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
-            return 0;
-        }
-        else
-            return 2;
+        printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
+        return 0;
     }
     
     for ( *Old_Dsdt_Ofs = 0; *Old_Dsdt_Ofs < *len ; *Old_Dsdt_Ofs+=1)

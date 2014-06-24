@@ -37,12 +37,15 @@
 - (void)concludeDragOperation:(id <NSDraggingInfo>)sender{
     
     NSArray *draggedFilenames = [[sender draggingPasteboard] propertyListForType:NSFilenamesPboardType];
+    NSString *string;
     
+    int i, ret;
     unsigned long len;
-    unsigned int ret;
     unsigned char *d =NULL;
     unsigned short Old_Dsdt_Size, Old_Dsdt_Ofs;
     const char *FileName;
+    const char *fnAmiBoardInfo = "";
+    const char *fnDSDT = "";
     unsigned short reloc_padding;
     
 
@@ -50,70 +53,67 @@
     
     switch ( [draggedFilenames count] ) //Number of files drop
     {
-        case 1: //Just extract DSDT
-        {
+        case EXTRACT_DSDT:
             FileName = [draggedFilenames[0] UTF8String];
             ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,2);
-            if ( ret == 2 ) printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
-            NSString* string = [[NSString alloc] initWithUTF8String:cr];
-            self.Output.string=string;
-        }
-        break;
+            if ( ret == 2 )
+                printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
+            break;
             
-        case 2: //Extract DSDT and patch
-        {
-            FileName = [draggedFilenames[0] UTF8String];
-            ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
-            switch (ret) //Check order of files drags
+        case EXTRACT_DSDT_AND_PATCH:
+            for (i=0; i<[draggedFilenames count]; i++)
             {
-                case 1:
-                    FileName = [draggedFilenames[1] UTF8String];
-                    reloc_padding = 0;
-                    Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
-                    //si reloc_padding est différent de 0, cela signifie que la zone de relocation est à cheval sur un segment d'adresse
-                    //il faut donc recaler l'adresse de base -> appel une seconde fois avec le paramètre reloc_padding.
-                    if ( reloc_padding != 0 )
-                    {
-                        FileName = [draggedFilenames[0] UTF8String];
-                        ret = Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
-                        FileName = [draggedFilenames[1] UTF8String];
-                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
-                    }
-                break;
-                case 2:
-                    FileName = [draggedFilenames[1] UTF8String];
-                    if ( Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1) == 2)
-                        printf("\n\n\n\n\n\n\n\nFile %s has bad header\n",FileName);
-                    else
-                    {
-                        FileName = [draggedFilenames[0] UTF8String];
-                        reloc_padding = 0;
-                        Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
-                        //si reloc_padding est différent de 0, cela signifie que la zone de relocation est à cheval sur un segment d'adresse
-                        //il faut donc recaler l'adresse de base -> appel une seconde fois avec le paramètre reloc_padding.
-                        if ( reloc_padding != 0 )
-                        {
-                            FileName = [draggedFilenames[1] UTF8String];
-                            Read_AmiBoardInfo(FileName, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
-                            FileName = [draggedFilenames[0] UTF8String];
-                            Read_Dsdt(FileName, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
-                        }
-                    }
+                FileName = [draggedFilenames[i] UTF8String];
+                ret = isDSDT(FileName);
+                if (ret < 0)
+                    break; // just breaking from loop
+                else if (ret == 1)
+                    fnDSDT = FileName;
+           
+                ret = isAmiBoardInfo(FileName);
+                if (ret < 0)
+                    break; // just breaking from loop
+                else if (ret == 1)
+                    fnAmiBoardInfo = FileName;
+            }
+            
+            if(StrLength(fnAmiBoardInfo) == 0) {
+                printf("\n\n\n\n\n\n\n\nAmiBoardInfo couldn't be verified\n");
                 break;
             }
-            NSString* string = [[NSString alloc] initWithUTF8String:cr];
-            self.Output.string=string;
-        }
-        break;
+            
+            if(StrLength(fnDSDT) == 0) {
+                printf("\n\n\n\n\n\n\n\nDSDT couldn't be verified\n");
+                break;
+            }
+
+            ret = Read_AmiBoardInfo(fnAmiBoardInfo,  d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
+            if(!ret) {
+                printf("\n\n\n\n\n\n\n\nError while reading from AmiBoardInfo\n");
+                break;
+            }
+            reloc_padding = 0;
+            Read_Dsdt(fnDSDT, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
+            // if reloc_padding is different from 0, the main area of relocation is beyond a segment address, we must
+            // therefore readjust the base address -> call it a second time with the reloc_padding parameter.
+            if ( reloc_padding == 0 )
+                break; // We are done already ;)
+            
+            ret = Read_AmiBoardInfo(fnAmiBoardInfo, d, &len, &Old_Dsdt_Size, &Old_Dsdt_Ofs,1);
+            if(!ret) {
+                printf("\n\n\n\n\n\n\n\nError while reading from AmiBoardInfo\n");
+                break;
+            }
+            Read_Dsdt(fnDSDT, d, len, Old_Dsdt_Size, Old_Dsdt_Ofs,&reloc_padding);
+            break;
             
         default:
-        {
-            self.Output.string = @"\n\n\n\n\n\nYOU MUST DRAG AND DROP SIMULTANEOUSLY\n\nYOUR ORIGINAL AMIBOARDINFO AND YOUR NEW DSDT \n\nOR\n\nJUST DRAG AND DROP AMIBOARDINFO TO GET ORIGINAL DSDT";
-        }
-        break;
+            printf("\n\n\n\n\n\nYOU MUST DRAG AND DROP SIMULTANEOUSLY\n\nYOUR ORIGINAL AMIBOARDINFO AND YOUR NEW DSDT \n\nOR\n\nJUST DRAG AND DROP AMIBOARDINFO TO GET ORIGINAL DSDT");
+            break;
     }
     
-    
+    string = [[NSString alloc] initWithUTF8String:cr];
+    self.Output.string=string;
     free(d);
 }
 
