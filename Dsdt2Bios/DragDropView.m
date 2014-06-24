@@ -40,10 +40,10 @@
     unsigned long len;
     unsigned int ret;
     unsigned char *d =NULL;
-    unsigned short Old_Dsdt_Size, Old_Dsdt_Ofs;
+    unsigned int Old_Dsdt_Size, Old_Dsdt_Ofs;
     const char *FileName;
     char cr[65535]; // 0xFFFF
-    unsigned short reloc_padding;
+    unsigned int reloc_padding;
     
 
     d = malloc(0x100000);

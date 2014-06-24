@@ -123,7 +123,7 @@ static int Disass(unsigned char *X86_CODE64, int CodeSize, int size, char *cr)
     return ret;
 }
 
-unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract, char *cr)
+unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned int *Old_Dsdt_Size, unsigned int *Old_Dsdt_Ofs, int Extract, char *cr)
 {
     int fd_amiboard, fd_out;
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -191,13 +191,13 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     return 1;
 }
 
-unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned short Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs, char *cr,unsigned short *reloc_padding)
+unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned int Old_Dsdt_Size, unsigned int Old_Dsdt_Ofs, char *cr,unsigned int *reloc_padding)
 {
     int fd_dsdt, fd_out, i, j;
     unsigned long dsdt_len;
-    short size, padding;
+    int size, padding;
     unsigned char *dsdt;
-    unsigned short New_Dsdt_Size;
+    unsigned int New_Dsdt_Size;
     
     
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -321,7 +321,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
                     
     
                     EFI_IMAGE_BASE_RELOCATION *p;
-                    UINT16 *s;
+                    UINT32 *s;
                     UINT32 Offset = 0;
                     UINT32 sizeSection = 0;
                     UINT32 index = 0;
@@ -329,10 +329,10 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
                     UINT32 OldOfs = 0;
                     do
                     {
-                        p = (UINT32 *)(&d[Section[i].PointerToRawData]) + Offset;
+                        p = (EFI_IMAGE_BASE_RELOCATION *)(&d[Section[i].PointerToRawData]) + Offset;
                         Offset = p->SizeOfBlock / sizeof(UINT32);
                         sizeSection += p->SizeOfBlock;
-                        s = (UINT16 *)p + 4;
+                        s = (UINT32 *)p + 4;
                         
                         index = 0;
                         if ( debug ) sprintf(cr,"%sVirtual base address           \t0x%04x",cr,p->VirtualAddress);
