@@ -137,7 +137,7 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
         return 0;
     }
     //Get size of AmiBoardInfo in Header
-    *len = read(fd_amiboard, d, 0xFFFF);
+    *len = read(fd_amiboard, d, 0xFFFFF);
     close(fd_amiboard);
     
     HeaderDOS = (EFI_IMAGE_DOS_HEADER *)&d[0];
@@ -157,7 +157,10 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     {
         if ((d[*Old_Dsdt_Ofs] =='D') && (d[*Old_Dsdt_Ofs+1] =='S') && (d[*Old_Dsdt_Ofs+2] =='D') && (d[*Old_Dsdt_Ofs+3] =='T'))
         {
-            *Old_Dsdt_Size = (d[*Old_Dsdt_Ofs+5] << 8) + d[*Old_Dsdt_Ofs+4];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+7];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+6];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+5];
+            *Old_Dsdt_Size = (*Old_Dsdt_Size << 8) + d[*Old_Dsdt_Ofs+4];
             break;
         }
     }
@@ -202,7 +205,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
     EFI_IMAGE_SECTION_HEADER *Section;
 
     
-    dsdt = malloc(0x10000);
+    dsdt = malloc(0x100000);
     
     
     fd_dsdt = open(FileName, O_RDWR | O_NONBLOCK);
@@ -214,7 +217,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
         return 0;
     }
     //Read DSDT into buffer
-    dsdt_len = read(fd_dsdt, dsdt, 0xFFFF);
+    dsdt_len = read(fd_dsdt, dsdt, 0xFFFFF);
     close(fd_dsdt);
     
     if (!((dsdt[0] =='D') && (dsdt[1] =='S') && (dsdt[2] =='D') && (dsdt[3] =='T')))
@@ -235,19 +238,16 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
             return 0;
         }
     }
-        
-    New_Dsdt_Size = (dsdt[5] << 8) + dsdt[4];
+    
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[7];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[6];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[5];
+    New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[4];
+    
     
     size = New_Dsdt_Size - Old_Dsdt_Size;
     padding = 0x10-(len+size)&0x0f;
     size += padding + *reloc_padding;
-    
-    if ((len+size) > 0xFFFF)
-    {
-        sprintf(cr,"\n\n\n\n\n\n\n\nFinal size > 0xFFFF not tested aborting\n");
-        free(dsdt);
-        return 0;
-    }
     
     memcpy(&d[Old_Dsdt_Ofs+Old_Dsdt_Size+size],&d[Old_Dsdt_Ofs+Old_Dsdt_Size],len - Old_Dsdt_Ofs - Old_Dsdt_Size);
 

@@ -42,11 +42,11 @@
     unsigned char *d =NULL;
     unsigned short Old_Dsdt_Size, Old_Dsdt_Ofs;
     const char *FileName;
-    char cr[65535];
+    char cr[65535]; // 0xFFFF
     unsigned short reloc_padding;
     
 
-    d = malloc(0x10000);
+    d = malloc(0x100000);
     
     switch ( [draggedFilenames count] ) //Number of files drop
     {
