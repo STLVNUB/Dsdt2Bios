@@ -224,15 +224,13 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
     short size, padding;
     unsigned char *dsdt;
     unsigned int New_Dsdt_Size;
-    
+    bool foundDataSection = false;
     
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
     EFI_IMAGE_NT_HEADERS64 *HeaderNT;
     EFI_IMAGE_SECTION_HEADER *Section;
-
     
     dsdt = malloc(0x40000); // max 256 kb
-    
     
     fd_dsdt = open(FileName, O_RDWR | O_NONBLOCK);
     
@@ -263,7 +261,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
             return 0;
         }
     }
-        
+    
     New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[7];
     New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[6];
     New_Dsdt_Size = (New_Dsdt_Size << 8) + dsdt[5];
@@ -281,12 +279,8 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
     }
     
     memcpy(&d[Old_Dsdt_Ofs+Old_Dsdt_Size+size],&d[Old_Dsdt_Ofs+Old_Dsdt_Size],len - Old_Dsdt_Ofs - Old_Dsdt_Size);
-
     memset(&d[Old_Dsdt_Ofs],0x00,New_Dsdt_Size + padding + *reloc_padding);
-    
-    
     memcpy(&d[Old_Dsdt_Ofs],dsdt,New_Dsdt_Size);
-    
     
     HeaderDOS = (EFI_IMAGE_DOS_HEADER *)&d[0];
     HeaderNT = (EFI_IMAGE_NT_HEADERS64 *)&d[HeaderDOS->e_lfanew];
@@ -310,99 +304,84 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
         }
     }
     
-    
     Section = (EFI_IMAGE_SECTION_HEADER *)&d[HeaderDOS->e_lfanew+sizeof(EFI_IMAGE_NT_HEADERS64)];
     dprintf("%sPatching sections\n",cr);
     dprintf("%s-----------------\n\n",cr);
-    unsigned int Found = 0;
     
-
     for ( i = 0 ; i < HeaderNT->FileHeader.NumberOfSections; i++)
     {
-        if ( !strcmp((char *)&Section[i].Name, ".data" ) ) Found = 1;
-        if ( Found )
+        if (!strcmp((char *)&Section[i].Name, ".data"))
         {
-            if ( !strcmp((char *)&Section[i].Name, ".data" ) )
+            foundDataSection = true;
+            dprintf("%sName                         \t%s\t -> \t %s\n",cr,Section[i].Name,Section[i].Name);
+            dprintf("%sPhysicalAddress             \t0x%x",cr,Section[i].Misc.PhysicalAddress);
+            Section[i].Misc.PhysicalAddress += size;
+            dprintf("%s\t -> \t0x%x\n",cr,Section[i].Misc.PhysicalAddress);
+            dprintf("%sSizeOfRawData               \t0x%x",cr,Section[i].SizeOfRawData);
+            Section[i].SizeOfRawData += size;
+            dprintf("%s\t -> \t0x%x\n\n",cr,Section[i].SizeOfRawData);
+        }
+        else if(foundDataSection)
+        {
+            if (!strcmp((char *)&Section[i].Name,""))
+                strcpy((char *)&Section[i].Name,".empty");
+            
+            dprintf("%sName                        \t%s\t -> \t%s\n",cr,Section[i].Name,Section[i].Name);
+            dprintf("%sVirtualAddress              \t0x%x",cr,Section[i].VirtualAddress);
+            Section[i].VirtualAddress += size;
+            dprintf("%s\t -> \t0x%x\n",cr,Section[i].VirtualAddress);
+            dprintf("%sPointerToRawData            \t0x%x",cr,Section[i].PointerToRawData);
+            Section[i].PointerToRawData += size;
+            dprintf("%s\t -> \t0x%x\n\n",cr,Section[i].PointerToRawData);
+            
+            if (!strcmp((char *)&Section[i].Name, ".reloc"))
             {
-    
-                dprintf("%sName                         \t%s\t -> \t %s\n",cr,Section[i].Name,Section[i].Name);
-                dprintf("%sPhysicalAddress             \t0x%x",cr,Section[i].Misc.PhysicalAddress);
-                Section[i].Misc.PhysicalAddress += size;
-                dprintf("%s\t -> \t0x%x\n",cr,Section[i].Misc.PhysicalAddress);
-                dprintf("%sSizeOfRawData               \t0x%x",cr,Section[i].SizeOfRawData);
-                Section[i].SizeOfRawData += size;
-                dprintf("%s\t -> \t0x%x\n\n",cr,Section[i].SizeOfRawData);
-            }
-            else
-            {
-                if (!strcmp((char *)&Section[i].Name,"")) strcpy((char *)&Section[i].Name,".empty");
-                dprintf("%sName                        \t%s\t -> \t%s\n",cr,Section[i].Name,Section[i].Name);
-                dprintf("%sVirtualAddress              \t0x%x",cr,Section[i].VirtualAddress);
-                Section[i].VirtualAddress += size;
-                dprintf("%s\t -> \t0x%x\n",cr,Section[i].VirtualAddress);
-                dprintf("%sPointerToRawData            \t0x%x",cr,Section[i].PointerToRawData);
-                Section[i].PointerToRawData += size;
-                dprintf("%s\t -> \t0x%x\n\n",cr,Section[i].PointerToRawData);
                 
-                if ( !strcmp((char *)&Section[i].Name, ".reloc" ) )
-                {
+                dprintf("%sPatching relocations\n",cr);
+                dprintf("%s--------------------\n\n",cr);
+                
+                
+                EFI_IMAGE_BASE_RELOCATION *p;
+                UINT16 *s;
+                UINT32 Offset = 0;
+                UINT32 sizeSection = 0;
+                UINT32 index = 0;
+                UINT32 OldAdr = 0;
+                UINT32 OldOfs = 0;
+                do {
+                    p = (EFI_IMAGE_BASE_RELOCATION *)(&d[Section[i].PointerToRawData]) + Offset;
+                    Offset = p->SizeOfBlock / sizeof(UINT32);
+                    sizeSection += p->SizeOfBlock;
+                    s = (UINT16 *)p + 4;
                     
-                    dprintf("%sPatching relocations\n",cr);
-                    dprintf("%s--------------------\n\n",cr);
+                    index = 0;
+                    dprintf("%sVirtual base address           \t0x%04x",cr,p->VirtualAddress);
+                    OldAdr = p->VirtualAddress;
+                    if (p->VirtualAddress != 0 )
+                        p->VirtualAddress =(len + size) & 0xf000;
                     
-    
-                    EFI_IMAGE_BASE_RELOCATION *p;
-                    UINT16 *s;
-                    UINT32 Offset = 0;
-                    UINT32 sizeSection = 0;
-                    UINT32 index = 0;
-                    UINT32 OldAdr = 0;
-                    UINT32 OldOfs = 0;
-                    do
-                    {
-                        p = (EFI_IMAGE_BASE_RELOCATION *)(&d[Section[i].PointerToRawData]) + Offset;
-                        Offset = p->SizeOfBlock / sizeof(UINT32);
-                        sizeSection += p->SizeOfBlock;
-                        s = (UINT16 *)p + 4;
-                        
-                        index = 0;
-                        dprintf("%sVirtual base address           \t0x%04x",cr,p->VirtualAddress);
-                        OldAdr = p->VirtualAddress;
-                        if (p->VirtualAddress != 0 ) p->VirtualAddress =(len + size) & 0xf000;
-                        
-                        dprintf("%s\t -> \t0x%04x\n",cr,p->VirtualAddress);
-
-                        for ( j = 0; j <  ( p->SizeOfBlock - 8 ); j+=2)
-                        {
-                            if (*s != 0)
-                            {
-                                dprintf("%sTable index %i                \t0x%04x",cr,index++, OldAdr + (*s & 0xfff));
-                                if (p->VirtualAddress != 0 ) *s = 0xa000 + ((*s + size ) & 0xfff);
-                                dprintf("%s\t -> \t0x%04x\n",cr,p->VirtualAddress + (*s & 0xfff));
-                            }
-                            if (p->VirtualAddress != 0 )OldOfs = *s & 0xfff;
-                            s++;
+                    dprintf("%s\t -> \t0x%04x\n",cr,p->VirtualAddress);
+                    
+                    for ( j = 0; j < (p->SizeOfBlock - 8); j+=2) {
+                        if (*s != 0) {
+                            dprintf("%sTable index %i                \t0x%04x",cr,index++, OldAdr + (*s & 0xfff));
                             if (p->VirtualAddress != 0 )
-                            {
-                                if (j < ( p->SizeOfBlock - 8 - 4) )
-                                {
-                                    if ( OldOfs > ((*s +size) & 0xfff))
-                                    {
-                                        *reloc_padding = 0x10 + (0x1000 - OldOfs) & 0xff0 ;
-                                        dprintf("%s error %04X \n",cr,*reloc_padding);
-                                        goto error; //sorry it's not à beautifull end of prog ;)
-                                    }
-                                }
-                            }
+                                *s = 0xa000 + ((*s + size ) & 0xfff);
+                            
+                            dprintf("%s\t -> \t0x%04x\n",cr,p->VirtualAddress + (*s & 0xfff));
                         }
+                        if (p->VirtualAddress != 0 )
+                            OldOfs = *s & 0xfff;
                         
-                        dprintf("%s\n",cr);
-
-
-                    }while (sizeSection < Section[i].Misc.VirtualSize );
-                    
-                    dprintf("%s\n",cr);
-                }
+                        s++;
+                        
+                        if ((p->VirtualAddress != 0) && (j < (p->SizeOfBlock - 8 - 4)) && (OldOfs > ((*s +size) & 0xfff))) {
+                            *reloc_padding = 0x10 + (0x1000 - OldOfs) & 0xff0;
+                            dprintf("%s error %04X \n",cr,*reloc_padding);
+                            goto error; //sorry it's not à beautifull end of prog ;)
+                        }
+                    }
+                }while (sizeSection < Section[i].Misc.VirtualSize);
             }
         }
     }
