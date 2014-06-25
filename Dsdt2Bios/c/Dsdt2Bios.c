@@ -349,7 +349,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
                 UINT32 OldAdr = 0;
                 UINT32 OldOfs = 0;
                 do {
-                    p = (EFI_IMAGE_BASE_RELOCATION *)(&d[Section[i].PointerToRawData]) + Offset;
+                    p = (UINT32 *)(&d[Section[i].PointerToRawData]) + Offset;
                     Offset = p->SizeOfBlock / sizeof(UINT32);
                     sizeSection += p->SizeOfBlock;
                     s = (UINT16 *)p + 4;
