@@ -154,7 +154,7 @@ int isAmiBoardInfo(const char *FileName)
     return 1;
 }
 
-unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned int *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract)
+unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned long *len, unsigned short *Old_Dsdt_Size, unsigned short *Old_Dsdt_Ofs, int Extract)
 {
     int fd_amiboard, fd_out;
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
@@ -217,13 +217,13 @@ unsigned int Read_AmiBoardInfo(const char *FileName, unsigned char *d,unsigned l
     return 1;
 }
 
-unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned int Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs,unsigned short *reloc_padding)
+unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len, unsigned short Old_Dsdt_Size, unsigned short Old_Dsdt_Ofs,unsigned short *reloc_padding)
 {
     int fd_dsdt, fd_out, i, j;
     unsigned long dsdt_len;
     short size, padding;
     unsigned char *dsdt;
-    unsigned int New_Dsdt_Size;
+    unsigned short New_Dsdt_Size;
     bool foundDataSection = false;
     
     EFI_IMAGE_DOS_HEADER *HeaderDOS;
