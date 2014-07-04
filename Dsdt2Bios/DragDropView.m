@@ -42,7 +42,7 @@
     int i, ret;
     unsigned long len;
     unsigned char *d =NULL;
-    unsigned short Old_Dsdt_Ofs,Old_Dsdt_Size;
+    unsigned int Old_Dsdt_Ofs,Old_Dsdt_Size;
     const char *FileName;
     const char *fnAmiBoardInfo = "";
     const char *fnDSDT = "";
