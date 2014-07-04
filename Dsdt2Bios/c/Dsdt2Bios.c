@@ -402,7 +402,7 @@ unsigned int Read_Dsdt(const char *FileName, unsigned char *d, unsigned long len
         //dprintf("%sAmiBoardInfo.bin has been successfully created\n\n",cr);
     }
     else
-        printf("\n\n\n\n\n\n\n\nCode not patched, AmiBoardInfo.bin has not been created\n\n");
+        printf("%s\n\n\n\n\n\n\n\nCode not patched, AmiBoardInfo.bin has not been created\n\n", cr);
   
 error:
     free(dsdt);
